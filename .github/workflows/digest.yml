@@ -3,7 +3,7 @@ name: 每日外刊精读
 on:
   schedule:
     # UTC 00:00 = 北京时间 08:00（GitHub 的定时任务可能延迟几分钟到半小时）
-    - cron: "0 0 * * *"
+    - cron: "0 23 * * *"
   workflow_dispatch:        # 允许手动点一下立即运行，用来测试
 
 permissions:
