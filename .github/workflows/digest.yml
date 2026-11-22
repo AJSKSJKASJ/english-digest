@@ -1,0 +1,50 @@
+name: 每日外刊精读
+
+on:
+  schedule:
+    # UTC 00:00 = 北京时间 08:00（GitHub 的定时任务可能延迟几分钟到半小时）
+    - cron: "0 0 * * *"
+  workflow_dispatch:        # 允许手动点一下立即运行，用来测试
+
+permissions:
+  contents: write           # 需要写权限才能把生成的页面提交回仓库
+
+concurrency:
+  group: digest
+  cancel-in-progress: false
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 拉取仓库
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 抓文章 + 生成网页
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          PAGE_BASE_URL: ${{ vars.PAGE_BASE_URL }}
+        run: python scripts/digest.py
+
+      - name: 提交并发布（GitHub Pages 会自动更新）
+        run: |
+          git config user.name  "digest-bot"
+          git config user.email "digest-bot@users.noreply.github.com"
+          git add docs
+          if git diff --cached --quiet; then
+            echo "今天的内容没有变化，跳过提交"
+          else
+            git commit -m "digest: $(TZ=Asia/Shanghai date +%F)"
+            git push
+          fi
+
+      - name: 微信推送（页面发布之后才发，避免点开 404）
+        env:
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+          PAGE_BASE_URL: ${{ vars.PAGE_BASE_URL }}
+        run: python scripts/digest.py --push-only
